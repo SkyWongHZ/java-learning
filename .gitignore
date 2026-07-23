@@ -1,0 +1,32 @@
+# macOS and editors
+**/.DS_Store
+**/.idea/
+**/.vscode/
+**/.cursor/
+**/.codex/
+**/*.iml
+
+# Local secrets and machine-specific environment files
+**/.env
+**/.env.local
+**/.env.*.local
+**/*.pem
+**/*.key
+**/*.p12
+**/*.jks
+
+# Java build output
+**/target/
+**/*.class
+
+# Node build output and dependencies
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/*.tsbuildinfo
+
+# Logs and temporary files
+**/*.log
+**/.cache/
+**/.tmp/
