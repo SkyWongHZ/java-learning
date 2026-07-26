@@ -14,7 +14,7 @@
           v-model="query.keyword"
           class="filter-input"
           clearable
-          placeholder="搜索学号或姓名"
+          placeholder="搜索学号或学生姓名"
           :prefix-icon="Search"
           @keyup.enter="search"
           @clear="search"
