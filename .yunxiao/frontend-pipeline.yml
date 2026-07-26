@@ -61,7 +61,7 @@ stages:
                 test -n "${ACR_USERNAME:-}"
                 test -n "${ACR_PASSWORD:-}"
 
-                registry="registry.cn-hangzhou.aliyuncs.com"
+                registry="crpi-7pvk5xebkb6d01bu.cn-hangzhou.personal.cr.aliyuncs.com"
                 docker_config_dir="/root/.docker"
                 auth="$(printf '%s:%s' "${ACR_USERNAME}" "${ACR_PASSWORD}" \
                   | base64 | tr -d '\n')"
@@ -78,7 +78,7 @@ stages:
             name: 构建并推送前端镜像
             with:
               artifact: frontend_image
-              image: registry.cn-hangzhou.aliyuncs.com/docker_sky_private/bajie-ops-frontend:test-${DATETIME}
+              image: crpi-7pvk5xebkb6d01bu.cn-hangzhou.personal.cr.aliyuncs.com/docker_sky_private/bajie-ops-frontend:test-${DATETIME}
               dockerfilePath: deploy/springboot-demo-test/frontend.Dockerfile
               contextPath: deploy/springboot-demo-test
               cacheType: remote
