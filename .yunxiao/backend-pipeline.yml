@@ -112,7 +112,7 @@ stages:
             set -Eeuo pipefail
             test -n "${ACR_USERNAME:-}"
             test -n "${ACR_PASSWORD:-}"
-            [[ "${DATETIME}" =~ ^[0-9]{14}$ ]]
+            [[ "${DATETIME}" =~ ^[0-9]{4}(-[0-9]{2}){5}$ ]]
 
             release_dir="/opt/springboot-demo-test/releases/${DATETIME}-backend"
             rm -rf -- "${release_dir}"
