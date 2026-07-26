@@ -8,6 +8,10 @@ services:
     env_file:
       - /etc/springboot-demo-test/runtime.env
     environment:
+      # This stack is exclusively the test environment. Keep the profile
+      # authoritative here so an older host-side runtime.env cannot
+      # accidentally start the image with prod configuration.
+      SPRING_PROFILES_ACTIVE: test
       JAVA_TOOL_OPTIONS: >-
         -Xms128m -Xmx256m
         -Dfile.encoding=UTF-8
