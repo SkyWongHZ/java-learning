@@ -9,6 +9,22 @@
 - [`deploy/springboot-demo-test`](deploy/springboot-demo-test)：测试环境 Docker Compose 发布配置。
 - [`.yunxiao`](.yunxiao)：前后端两条阿里云云效测试流水线。
 
+## 阿里云测试环境
+
+当前测试环境部署在阿里云 ECS，通过同一个 Nginx 公网入口访问前端和后端：
+
+- 前端入口：<http://118.178.184.13/operation/>
+- 学生管理：<http://118.178.184.13/operation/students>
+- 后端接口文档：<http://118.178.184.13/doc.html>
+- 后端云效流水线：<https://flow.aliyun.com/pipelines/5156664>
+- 前端云效流水线：<https://flow.aliyun.com/pipelines/5156671>
+
+每次运行流水线都会生成新的 `test-${DATETIME}` ACR 镜像标签，但应用访问地址
+不会随镜像标签变化。若 ECS 公网 IP 或测试域名发生变更，需要同步更新本节和
+[`deploy/springboot-demo-test/README.md`](deploy/springboot-demo-test/README.md)。
+
+测试站点当前使用公网 HTTP，只能放测试数据，不得录入真实个人信息或敏感数据。
+
 ## 克隆后运行
 
 需要准备：
