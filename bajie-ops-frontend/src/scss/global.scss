@@ -1,0 +1,18 @@
+:root {
+    --font-sans: 'Source Han Sans SC', system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+}
+
+/* 应用全局字体 */
+body {
+    font-family: var(--font-sans);
+}
+
+/* 等待字体加载的过渡样式 */
+.font-loading body {
+    font-family: system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+}
+
+/* 字体加载完成后的样式 */
+.font-loaded body {
+    font-family: var(--font-sans);
+}

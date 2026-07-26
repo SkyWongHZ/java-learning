@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.validation.ConstraintViolationException;
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -29,10 +31,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Response<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException exception) {
-        String message = exception.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(error -> error.getDefaultMessage())
-                .orElse(BaseStatusCodeEnum.VALIDATION_ERROR.getMessage());
+        String message = validationMessage(exception.getBindingResult().getFieldErrors());
         return Response.fail(BaseStatusCodeEnum.VALIDATION_ERROR.getCode(), message);
     }
 
@@ -47,10 +46,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BindException.class)
     public Response<Void> handleBindException(BindException exception) {
-        String message = exception.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(error -> error.getDefaultMessage())
-                .orElse(BaseStatusCodeEnum.VALIDATION_ERROR.getMessage());
+        String message = validationMessage(exception.getBindingResult().getFieldErrors());
         return Response.fail(BaseStatusCodeEnum.VALIDATION_ERROR.getCode(), message);
     }
 
@@ -79,5 +75,15 @@ public class GlobalExceptionHandler {
     public Response<Void> handleUnexpectedException(Exception exception) {
         log.error("unexpected exception", exception);
         return Response.fail(BaseStatusCodeEnum.SYSTEM_ERROR);
+    }
+
+    private String validationMessage(List<FieldError> fieldErrors) {
+        FieldError selectedError = fieldErrors.stream()
+                .filter(error -> "NotBlank".equals(error.getCode()))
+                .findFirst()
+                .orElseGet(() -> fieldErrors.stream().findFirst().orElse(null));
+        return selectedError == null
+                ? BaseStatusCodeEnum.VALIDATION_ERROR.getMessage()
+                : selectedError.getDefaultMessage();
     }
 }

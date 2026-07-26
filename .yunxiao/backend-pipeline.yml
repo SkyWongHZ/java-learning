@@ -1,0 +1,108 @@
+# springboot-demo 后端测试流水线
+# 手动运行：GitHub 推送完成后，在云效点击“运行”。
+sources:
+  github_repo:
+    type: git
+    name: java-learning
+    endpoint: https://github.com/SkyWongHZ/java-learning.git
+    branch: main
+    cloneDepth: "20"
+
+stages:
+  build_stage:
+    name: 后端测试、镜像构建并推送 ACR
+    jobs:
+      build_job:
+        name: Java 17 测试与后端镜像
+        runsOn:
+          group: public/cn-beijing
+          container: build-steps-public-registry.cn-beijing.cr.aliyuncs.com/build-steps/alinux3:latest
+        steps:
+          setup_java:
+            step: SetupJava
+            name: 安装 Java 17 和 Maven
+            with:
+              jdkVersion: "17"
+              mavenVersion: "3.9.3"
+
+          java_build:
+            step: Command
+            name: Maven 测试并打包
+            with:
+              run: |
+                set -Eeuo pipefail
+                project_root="${PWD}"
+
+                bash .yunxiao/scripts/backend-ci.sh
+
+                cd springboot-demo
+                jar_path="$(find target -maxdepth 1 -type f -name '*.jar' \
+                  ! -name '*-plain.jar' ! -name '*.original' -print -quit)"
+                test -n "${jar_path}"
+
+                cd "${project_root}"
+                rm -rf deploy/springboot-demo-test/release
+                install -d -m 0755 deploy/springboot-demo-test/release
+                install -m 0644 "springboot-demo/${jar_path}" \
+                  deploy/springboot-demo-test/release/app.jar
+
+                rm -rf .yunxiao-artifacts/backend
+                install -d -m 0755 .yunxiao-artifacts/backend
+                install -m 0644 deploy/springboot-demo-test/compose.yaml \
+                  .yunxiao-artifacts/backend/compose.yaml
+                install -m 0755 deploy/springboot-demo-test/deploy-image.sh \
+                  .yunxiao-artifacts/backend/deploy-image.sh
+
+          docker_build:
+            step: DockerBuildPushACR
+            name: 构建并推送后端镜像
+            with:
+              serviceConnection: xeg5ogxm1de5yrcm
+              artifact: backend_image
+              region: cn-hangzhou
+              dockerRegistry: docker_sky_private/springboot-demo-backend
+              dockerTag: test-${DATETIME}
+              dockerfilePath: deploy/springboot-demo-test/backend.Dockerfile
+              contextPath: deploy/springboot-demo-test
+              cacheType: remote
+              options: --provenance=false
+
+          upload_deploy_bundle:
+            step: ArtifactUpload
+            name: 上传 Compose 发布配置
+            with:
+              type: flowPublic
+              artifact: backend_deploy_bundle
+              filePath:
+                - .yunxiao-artifacts/backend/
+
+  deploy_stage:
+    name: 后端测试环境 Compose 发布
+    jobs:
+      deploy_job:
+        name: 测试 ECS 拉取并更新后端
+        component: VMDeploy
+        with:
+          artifact: $[stages.build_stage.build_job.upload_deploy_bundle.artifacts.backend_deploy_bundle]
+          machineGroup: XgsRq1BEiPbpjfE1
+          artifactDownloadPath: /tmp/springboot-demo-backend-${DATETIME}.tgz
+          executeUser: root
+          pauseStrategy: noPause
+          batchNumber: 1
+          deployTimeoutPerHost: 20
+          run: |
+            set -Eeuo pipefail
+            test -n "${ACR_USERNAME:-}"
+            test -n "${ACR_PASSWORD:-}"
+            [[ "${DATETIME}" =~ ^[0-9]{14}$ ]]
+
+            release_dir="/opt/springboot-demo-test/releases/${DATETIME}-backend"
+            rm -rf -- "${release_dir}"
+            install -d -m 0755 "${release_dir}"
+            tar zxf "/tmp/springboot-demo-backend-${DATETIME}.tgz" -C "${release_dir}"
+            deploy_script="$(find "${release_dir}" -type f -name deploy-image.sh -print -quit)"
+            test -n "${deploy_script}"
+
+            export ACR_REGISTRY="crpi-7pvk5xebkb6d01bu-vpc.cn-hangzhou.personal.cr.aliyuncs.com"
+            image="${ACR_REGISTRY}/docker_sky_private/springboot-demo-backend:test-${DATETIME}"
+            bash "${deploy_script}" backend "${image}"

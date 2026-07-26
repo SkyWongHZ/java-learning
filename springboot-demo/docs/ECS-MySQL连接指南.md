@@ -11,9 +11,9 @@ Mac 本地
 └── 公网 3306 -> Docker my-mysql:3306
 ```
 
-当前阶段的重点是学习 Spring Boot真实 CRUD，因此采用与旧 Go/Nest项目相同的公网直连方式。加载 `.env` 后启动 Spring Boot即可，不需要额外保持 SSH隧道终端。
+当前阶段的重点是学习 Spring Boot真实 CRUD，因此采用与旧 Go/Nest项目相同的公网直连方式。加载 `.env` 后启动 Spring Boot即可，不需要额外保持 MySQL SSH隧道终端。
 
-项目仍保留 `scripts/open-ecs-mysql-tunnel.sh` 作为以后在临时网络或收紧公网端口时的备用方案。隧道模式等价于：
+以后如需收紧公网端口，可以直接使用以下命令临时建立 MySQL 隧道：
 
 ```bash
 ssh -N -L 127.0.0.1:13306:127.0.0.1:3306 ECS用户@ECS地址
@@ -28,7 +28,9 @@ ssh -N -L 127.0.0.1:13306:127.0.0.1:3306 ECS用户@ECS地址
 | `dev` | ECS自建 MySQL（当前公网直连） | 真实数据库接口联调 |
 | `test` | 与 dev相同的 ECS自建 MySQL | JUnit 5 + MockMvc自动测试 |
 
-项目不再保留 local/H2配置，默认 profile为 `dev`。日常开发通过 `scripts/start-dev.sh` 启动；自动测试通过 `scripts/test.sh` 加载相同数据库环境变量并强制使用 `test` profile。
+项目不再保留 local/H2配置，默认 profile为 `dev`。日常开发和自动测试统一通过
+`scripts/start-dev.sh` 运行；传入 `--test` 时加载相同数据库环境变量并强制使用
+`test` profile。
 
 2026-07-19真实环境已确认：MySQL运行在 Docker容器 `my-mysql` 中，版本为 `5.7.43`，数据目录使用 Docker volume持久化；本机可以通过 SSH密钥登录 ECS。
 
@@ -72,17 +74,8 @@ docker exec -it MYSQL容器名 mysql -uroot -p \
 
 ## 5. 创建独立数据库和账号
 
-首次接入推荐从项目根目录执行自动初始化脚本。脚本会执行建表 SQL、创建仅有 CRUD权限的 `springboot_app`，生成随机密码并写入权限为 `600` 的本地 `.env`；密码不会打印到终端：
-
-```bash
-ECS_HOST='你的 ECS地址或 SSH别名' \
-ECS_USER='root' \
-./scripts/provision-ecs-mysql-dev.sh
-```
-
-脚本不会覆盖已经存在的 `.env`。当前项目已经完成首次初始化，不需要重复执行。
-
-以下是需要手工初始化时的等价步骤。
+当前项目已经完成首次初始化，不需要重复创建数据库和账号。新环境需要手工初始化时，
+按以下步骤执行。
 
 数据库管理员在 ECS上执行项目脚本：
 
@@ -117,7 +110,7 @@ cp .env.example .env
 - `DB_URL`：指向 `jdbc:mysql://ECS公网IP:3306/springboot_demo`。
 - `DB_USERNAME`：独立的 `springboot_app` 账号。
 - `DB_PASSWORD`：数据库密码。
-- `ECS_HOST`、`ECS_USER` 等只供初始化脚本和可选 SSH隧道使用。
+- `ECS_HOST`、`ECS_USER` 等用于 `start-dev.sh` 自动建立 Redis SSH 隧道。
 
 `.env` 已被 `.gitignore` 排除。不要把文件内容提交到 Git，也不要通过聊天发送真实密码。
 
@@ -142,7 +135,8 @@ mysql --protocol=TCP \
 
 密码通过交互提示输入，不要把密码直接放在命令行中。
 
-需要切回 SSH隧道时，运行 `scripts/open-ecs-mysql-tunnel.sh`，并临时把 `DB_URL` 主机端口改为 `127.0.0.1:13306`；这不是当前默认开发流程。
+需要切回 MySQL SSH 隧道时，可以执行第 1 节给出的 `ssh -N -L` 命令，并临时把
+`DB_URL` 主机端口改为 `127.0.0.1:13306`；这不是当前默认开发流程。
 
 ## 8. 启动 Spring Boot
 
@@ -171,10 +165,14 @@ jdbc:mysql://ECS公网IP:3306/springboot_demo
 项目的测试不再使用 H2。执行：
 
 ```bash
-./scripts/test.sh
+./scripts/start-dev.sh --test
 ```
 
-脚本会加载 `.env`、切换到 `test` profile并连接与 dev相同的 ECS MySQL。CRUD测试使用每次运行唯一的用户名，并由 Spring测试事务在用例结束后回滚；共享数据库仍意味着测试依赖网络和 ECS MySQL可用性，不应在测试中加入清表或操作非测试数据的语句。MySQL自增序列不会随事务回滚，因此测试后出现不连续的 ID属于预期现象。
+脚本会加载 `.env`、自动管理 Redis 隧道、切换到 `test` profile并连接与 dev相同的
+ECS MySQL。CRUD测试使用每次运行唯一的用户名，并由 Spring测试事务在用例结束后
+回滚；共享数据库仍意味着测试依赖网络和 ECS MySQL可用性，不应在测试中加入清表
+或操作非测试数据的语句。MySQL自增序列不会随事务回滚，因此测试后出现不连续的
+ID属于预期现象。
 
 ## 10. CRUD联调
 
@@ -216,7 +214,8 @@ ORDER BY id DESC;
 
 ### 换网络后无法连接
 
-公网出口 IP可能已经变化，需要检查 ECS安全组来源规则。若不想临时调整3306规则，可以改用保留的 SSH隧道方案。
+公网出口 IP可能已经变化，需要检查 ECS安全组来源规则。若不想临时调整3306规则，
+可以改用第 1 节的手工 SSH 隧道命令。
 
 ## 12. 验收结果
 
@@ -228,6 +227,7 @@ ORDER BY id DESC;
 - `SPRING_PROFILES_ACTIVE=dev` 启动成功，连接池名称为 `SpringbootDemoDevHikariPool`。
 - 创建、查询、修改、逻辑删除接口均已操作 ECS上的 `demo_user`。
 - 接口时间与 MySQL原始数据均按 `Asia/Shanghai` 对齐。
-- `./scripts/test.sh` 使用 test profile连接 ECS MySQL；测试数据使用唯一用户名并由事务回滚。
+- `./scripts/start-dev.sh --test` 使用 test profile连接 ECS MySQL；测试数据使用唯一
+  用户名并由事务回滚。
 
 后续部署与安全阶段再处理：将 ECS上的应用改为 Docker内网连接、收紧公网3306、按需启用 MySQL TLS或 SSH隧道。本阶段不升级 MySQL 5.7.43。

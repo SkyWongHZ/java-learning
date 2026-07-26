@@ -17,7 +17,8 @@ services:
       - --default-time-zone=+08:00
     volumes:
       - springboot-demo-mysql-data:/var/lib/mysql
-      - ./sql/20260717_create_demo_user.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./sql/20260723_create_auth_tables.sql:/docker-entrypoint-initdb.d/001-auth.sql:ro
+      - ./sql/20260726_create_student_management_tables.sql:/docker-entrypoint-initdb.d/002-student-management.sql:ro
     healthcheck:
       test:
         - CMD-SHELL
@@ -27,5 +28,37 @@ services:
       retries: 20
       start_period: 15s
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: springboot-demo-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:16379:6379"
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 96mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    volumes:
+      - springboot-demo-redis-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+
 volumes:
   springboot-demo-mysql-data:
+  springboot-demo-redis-data:

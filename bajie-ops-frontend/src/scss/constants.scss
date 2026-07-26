@@ -1,0 +1,64 @@
+// 学生信息管理系统主题：现代靛紫·主流 SaaS 观感
+$theme-color: #4F46E5; // 主色·现代靛紫
+$theme-color-hover: #4338CA; // 主色 hover / 加深
+$accent-color: #06B6D4; // 点缀色·青蓝 cyan（关键指标/标签高亮）
+$bg-color: #F8FAFC; // 页面背景·slate-50
+$text-strong: #0F172A; // 主文字·石板深
+$text-muted: #64748B; // 次要文字·石板灰
+// 品牌渐变：顶栏用（靛紫）、标题/点缀用（靛紫→青蓝）
+$theme-gradient: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%);
+$brand-gradient: linear-gradient(90deg, #4F46E5 0%, #06B6D4 100%);
+
+@forward '/node_modules/element-plus/theme-chalk/src/common/var.scss' with (
+    $colors: (
+        'primary': ('base': $theme-color),
+        'success': ('base': #10B981),
+        'warning': ('base': #F59E0B),
+        'danger': ('base': #EF4444),
+        'error': ('base': #EF4444)
+    ),
+    $text-color: (
+        'primary': #1B2029,
+        'regular': #3A414D,
+        'secondary': #6B7280,
+        'placeholder': #9AA1AC
+    ),
+    $border-color: ('': #E3E6EB, 'light': #EDEFF2, 'lighter': #F1F3F5),
+    $fill-color: ('light': #F4F5F7, 'lighter': #F8F9FB),
+    $table: ('border-color': #EEF0F3)
+);
+
+@mixin z-index-max-pro {
+    z-index: 3000; //超越element弹窗（2002）
+}
+
+@mixin z-index-max {
+    z-index: 1000; //超越element弹窗（2002）
+}
+
+@mixin z-index-4 {
+    z-index: 4;
+}
+
+@mixin z-index-3 {
+    z-index: 3;
+}
+
+@mixin z-index-2 {
+    z-index: 2;
+}
+
+// 动画时长
+$animation-duration: .3s;
+
+@function rem($px) {
+    @return $px * 1px;
+}
+
+@function vw($px) {
+    @return calc($px * 1px / 1920px) * 100vw;
+}
+
+@function remNew($px) {
+    @return calc($px * 1px / 1440px) * 100vw;
+}

@@ -1,0 +1,107 @@
+# bajie-ops-frontend 前端测试流水线
+# 手动运行：GitHub 推送完成后，在云效点击“运行”。
+sources:
+  github_repo:
+    type: git
+    name: java-learning
+    endpoint: https://github.com/SkyWongHZ/java-learning.git
+    branch: main
+    cloneDepth: "20"
+
+stages:
+  build_stage:
+    name: 前端检查、镜像构建并推送 ACR
+    jobs:
+      build_job:
+        name: Node 20 检查与前端镜像
+        runsOn:
+          group: public/cn-beijing
+          container: build-steps-public-registry.cn-beijing.cr.aliyuncs.com/build-steps/alinux3:latest
+        steps:
+          setup_node:
+            step: SetupNode
+            name: 安装 Node 20
+            with:
+              versionType: nvmrc
+              npmType: npm
+
+          node_build:
+            step: Command
+            name: 类型检查并构建测试包
+            with:
+              run: |
+                set -Eeuo pipefail
+                project_root="${PWD}"
+
+                cd bajie-ops-frontend
+                npm ci --no-audit
+                npm run type-check
+                VITE_BASE_URL="/" npm run build:dev
+                test -f dist/index.html
+
+                cd "${project_root}"
+                rm -rf deploy/springboot-demo-test/release/frontend
+                install -d -m 0755 deploy/springboot-demo-test/release/frontend
+                cp -a bajie-ops-frontend/dist/. \
+                  deploy/springboot-demo-test/release/frontend/
+
+                rm -rf .yunxiao-artifacts/frontend
+                install -d -m 0755 .yunxiao-artifacts/frontend
+                install -m 0644 deploy/springboot-demo-test/compose.yaml \
+                  .yunxiao-artifacts/frontend/compose.yaml
+                install -m 0755 deploy/springboot-demo-test/deploy-image.sh \
+                  .yunxiao-artifacts/frontend/deploy-image.sh
+
+          docker_build:
+            step: DockerBuildPushACR
+            name: 构建并推送前端镜像
+            with:
+              serviceConnection: xeg5ogxm1de5yrcm
+              artifact: frontend_image
+              region: cn-hangzhou
+              dockerRegistry: docker_sky_private/bajie-ops-frontend
+              dockerTag: test-${DATETIME}
+              dockerfilePath: deploy/springboot-demo-test/frontend.Dockerfile
+              contextPath: deploy/springboot-demo-test
+              cacheType: remote
+              options: --provenance=false
+
+          upload_deploy_bundle:
+            step: ArtifactUpload
+            name: 上传 Compose 发布配置
+            with:
+              type: flowPublic
+              artifact: frontend_deploy_bundle
+              filePath:
+                - .yunxiao-artifacts/frontend/
+
+  deploy_stage:
+    name: 前端测试环境 Compose 发布
+    jobs:
+      deploy_job:
+        name: 测试 ECS 拉取并更新前端
+        component: VMDeploy
+        with:
+          artifact: $[stages.build_stage.build_job.upload_deploy_bundle.artifacts.frontend_deploy_bundle]
+          machineGroup: XgsRq1BEiPbpjfE1
+          artifactDownloadPath: /tmp/bajie-ops-frontend-${DATETIME}.tgz
+          executeUser: root
+          pauseStrategy: noPause
+          batchNumber: 1
+          deployTimeoutPerHost: 20
+          run: |
+            set -Eeuo pipefail
+            test -n "${ACR_USERNAME:-}"
+            test -n "${ACR_PASSWORD:-}"
+            [[ "${DATETIME}" =~ ^[0-9]{14}$ ]]
+
+            release_dir="/opt/springboot-demo-test/releases/${DATETIME}-frontend"
+            rm -rf -- "${release_dir}"
+            install -d -m 0755 "${release_dir}"
+            tar zxf "/tmp/bajie-ops-frontend-${DATETIME}.tgz" -C "${release_dir}"
+            deploy_script="$(find "${release_dir}" -type f -name deploy-image.sh -print -quit)"
+            test -n "${deploy_script}"
+
+            export ACR_REGISTRY="crpi-7pvk5xebkb6d01bu-vpc.cn-hangzhou.personal.cr.aliyuncs.com"
+            image="${ACR_REGISTRY}/docker_sky_private/bajie-ops-frontend:test-${DATETIME}"
+            bash "${deploy_script}" frontend "${image}"
