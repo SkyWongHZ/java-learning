@@ -54,13 +54,13 @@ stages:
                   .yunxiao-artifacts/backend/deploy-image.sh
 
           docker_build:
-            step: DockerBuildPushACR
+            step: ACRDockerBuild
             name: 构建并推送后端镜像
             with:
               serviceConnection: xeg5ogxm1de5yrcm
               artifact: backend_image
               region: cn-hangzhou
-              dockerRegistry: docker_sky_private/springboot-demo-backend
+              dockerRegistry: registry.cn-hangzhou.aliyuncs.com/docker_sky_private/springboot-demo-backend
               dockerTag: test-${DATETIME}
               dockerfilePath: deploy/springboot-demo-test/backend.Dockerfile
               contextPath: deploy/springboot-demo-test

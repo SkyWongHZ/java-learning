@@ -53,13 +53,13 @@ stages:
                   .yunxiao-artifacts/frontend/deploy-image.sh
 
           docker_build:
-            step: DockerBuildPushACR
+            step: ACRDockerBuild
             name: 构建并推送前端镜像
             with:
               serviceConnection: xeg5ogxm1de5yrcm
               artifact: frontend_image
               region: cn-hangzhou
-              dockerRegistry: docker_sky_private/bajie-ops-frontend
+              dockerRegistry: registry.cn-hangzhou.aliyuncs.com/docker_sky_private/bajie-ops-frontend
               dockerTag: test-${DATETIME}
               dockerfilePath: deploy/springboot-demo-test/frontend.Dockerfile
               contextPath: deploy/springboot-demo-test
