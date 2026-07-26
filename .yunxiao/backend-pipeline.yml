@@ -54,14 +54,28 @@ stages:
                   .yunxiao-artifacts/backend/deploy-image.sh
 
           docker_login:
-            step: DockerLogin
-            name: 登录后端 ACR 仓库
+            step: Command
+            name: 准备后端 ACR 登录凭据
             with:
-              dockerRepository: registry.cn-hangzhou.aliyuncs.com
-              serviceConnection: xeg5ogxm1de5yrcm
+              run: |
+                set -Eeuo pipefail
+                test -n "${ACR_USERNAME:-}"
+                test -n "${ACR_PASSWORD:-}"
+
+                registry="registry.cn-hangzhou.aliyuncs.com"
+                docker_config_dir="/root/.docker"
+                auth="$(printf '%s:%s' "${ACR_USERNAME}" "${ACR_PASSWORD}" \
+                  | base64 | tr -d '\n')"
+
+                umask 077
+                install -d -m 0700 "${docker_config_dir}"
+                printf '{"auths":{"%s":{"auth":"%s"}}}\n' \
+                  "${registry}" "${auth}" \
+                  > "${docker_config_dir}/config.json"
+                unset auth
 
           docker_build:
-            step: PrivateRegistryDockerBuild
+            step: DockerBuildPush
             name: 构建并推送后端镜像
             with:
               artifact: backend_image
